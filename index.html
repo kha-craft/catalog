@@ -61,8 +61,9 @@ function renderPage(num, wrap) {
   if (wrap.dataset.rendered === "true") return;
   wrap.dataset.rendered = "true";
   pdfDoc.getPage(num).then((page) => {
-    const targetWidth = Math.min(820, window.innerWidth - 24);
-    const scale = targetWidth / page.getViewport({ scale: 1 }).width;
+    const dpr = window.devicePixelRatio || 1;               // 화면 실제 배율 반영
+    const cssWidth = Math.min(820, window.innerWidth - 24); // 화면에 보이는 크기(그대로)
+    const scale = (cssWidth / page.getViewport({ scale: 1 }).width) * dpr; // 그리는 해상도만 배율만큼 키움
     const viewport = page.getViewport({ scale });
     const canvas = wrap.querySelector("canvas");
     canvas.width = viewport.width;
