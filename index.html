@@ -1,11 +1,102 @@
 <!DOCTYPE html>
-<html>
+<html lang="ko">
 <head>
-  <meta charset="UTF-8">
-  <meta http-equiv="refresh" content="0; url=catalog.pdf">
-  <title>자연의 숨, 인간의 쉼</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>도록 보기</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+<style>
+  *{box-sizing:border-box;}
+  body{margin:0;background:#f0efe8;font-family:-apple-system,"Apple SD Gothic Neo",sans-serif;}
+  #toolbar{
+    display:flex;align-items:center;justify-content:center;gap:8px;
+    padding:10px 12px;background:#fff;border-bottom:1px solid #ddd;
+    position:sticky;top:0;z-index:10;flex-wrap:wrap;
+  }
+  #toolbar button{
+    padding:8px 14px;border:1px solid #ccc;border-radius:6px;background:#fff;
+    cursor:pointer;font-size:14px;
+  }
+  #toolbar button:hover{background:#f2f2f2;}
+  #pageNum{width:56px;padding:8px;text-align:center;border:1px solid #ccc;border-radius:6px;font-size:14px;}
+  #pageCount{font-size:14px;color:#555;}
+  #viewer{display:flex;justify-content:center;padding:20px 10px 60px;}
+  #pdf-canvas{box-shadow:0 2px 12px rgba(0,0,0,.15);max-width:100%;height:auto;background:#fff;}
+  #loading{text-align:center;padding:60px 20px;color:#777;font-size:14px;}
+</style>
 </head>
 <body>
-  <p>도록으로 이동 중입니다... 자동으로 이동하지 않으면 <a href="catalog.pdf">여기</a>를 눌러주세요.</p>
+
+<div id="toolbar">
+  <button id="prevBtn">◀ 이전</button>
+  <input type="number" id="pageNum" min="1" value="1">
+  <span id="pageCount">/ -</span>
+  <button id="goBtn">이동</button>
+  <button id="nextBtn">다음 ▶</button>
+</div>
+
+<div id="loading">불러오는 중...</div>
+<div id="viewer" style="display:none;">
+  <canvas id="pdf-canvas"></canvas>
+</div>
+
+<script>
+/* ▼▼▼ 실제 PDF 파일명으로 바꿔주세요 (같은 저장소, 같은 폴더 기준) ▼▼▼ */
+const PDF_URL = "catalog.pdf";
+/* ▲▲▲ ------------------------------------------------------- ▲▲▲ */
+
+pdfjsLib.GlobalWorkerOptions.workerSrc =
+  "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js";
+
+let pdfDoc = null;
+let currentPage = 1;
+const canvas = document.getElementById("pdf-canvas");
+const ctx = canvas.getContext("2d");
+
+function renderPage(num) {
+  pdfDoc.getPage(num).then((page) => {
+    const scale = Math.min(1.6, (window.innerWidth - 40) / page.getViewport({ scale: 1 }).width);
+    const viewport = page.getViewport({ scale: scale });
+    canvas.width = viewport.width;
+    canvas.height = viewport.height;
+    page.render({ canvasContext: ctx, viewport: viewport });
+    document.getElementById("pageNum").value = num;
+    currentPage = num;
+    history.replaceState(null, "", "?page=" + num);
+  });
+}
+
+pdfjsLib.getDocument(PDF_URL).promise.then((pdf) => {
+  pdfDoc = pdf;
+  document.getElementById("pageCount").textContent = "/ " + pdf.numPages;
+  document.getElementById("pageNum").max = pdf.numPages;
+
+  const params = new URLSearchParams(window.location.search);
+  const startPage = Math.min(Math.max(parseInt(params.get("page")) || 1, 1), pdf.numPages);
+
+  document.getElementById("loading").style.display = "none";
+  document.getElementById("viewer").style.display = "flex";
+  renderPage(startPage);
+}).catch((err) => {
+  document.getElementById("loading").textContent =
+    "PDF를 불러올 수 없습니다. 파일명(" + PDF_URL + ")이 맞는지 확인해 주세요.";
+  console.error(err);
+});
+
+document.getElementById("goBtn").addEventListener("click", () => {
+  const n = parseInt(document.getElementById("pageNum").value);
+  if (pdfDoc && n >= 1 && n <= pdfDoc.numPages) renderPage(n);
+});
+document.getElementById("pageNum").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") document.getElementById("goBtn").click();
+});
+document.getElementById("prevBtn").addEventListener("click", () => {
+  if (currentPage > 1) renderPage(currentPage - 1);
+});
+document.getElementById("nextBtn").addEventListener("click", () => {
+  if (pdfDoc && currentPage < pdfDoc.numPages) renderPage(currentPage + 1);
+});
+</script>
+
 </body>
 </html>
